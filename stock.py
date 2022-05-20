@@ -181,8 +181,9 @@ class Stock(object):
             daily_r = df.withColumn("daily_r", (df["Diff"] * nb_shares) / start_price)
             return daily_r
 
-        def get_daily_return_max(self):
-            
+        def get_daily_return_max(self, period="day", start_price=None, nb_shares=1):
+            df = self.get_daily_return(period, start_price, nb_shares)
+            return df.select(func.max('daily_r')).first()[0]
 
         def _compute_avg(self, df, col, period):
             date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
