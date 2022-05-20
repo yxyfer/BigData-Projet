@@ -2,6 +2,7 @@ from pyspark.sql import SparkSession
 import pandas as pd
 
 from pyspark.sql.functions import col, isnan, when, count
+from pyspark.sql.functions import mean
 from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql.types import (
     DoubleType,
@@ -33,6 +34,7 @@ class Stock(object):
         self.df = self._load_df()
 
         self.explore = self.Explore(self)
+        self.analysis = self.Analysis(self)
 
     def _get_num_cols(self):
         num_cols = [
@@ -149,3 +151,29 @@ class Stock(object):
             #.show()
 
 
+    class Analysis:
+        def __init__(self, stock):
+            self.stock = stock
+            self.df = stock.df
+
+        def get_oc_avg(self, fun):
+            close = self._compute_avg(self.df, "Close", fun)
+            opening = self._compute_avg(self.df, "Open", fun)
+
+            return close.join(
+                opening, opening.Open_new_time == close.Close_new_time, "inner"
+            ).orderBy("Close_new_time").select(
+                close.Close_new_time, close.Close_mean, opening.Open_mean
+            )
+
+        def get_price_change(self, period=None):
+            df = self.df
+            if period:
+                df= self.get_oc_avg(period)
+           
+            return  df.withColumn('diff', ( df['Close_mean'] - df['Open_mean'] ))
+
+        def _compute_avg(self, df, col, fun):
+            return df.groupBy(fun("Date").alias(col + "_new_time")).agg(
+                mean(col).alias(col + "_mean")
+            )
