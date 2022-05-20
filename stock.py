@@ -3,7 +3,7 @@ import pandas as pd
 
 from pyspark.sql.functions import col, isnan, when, count
 from pyspark.sql.functions import mean
-from pyspark.sql.functions import col, asc,desc
+from pyspark.sql.functions import col, asc, desc
 from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql.types import (
     DoubleType,
@@ -23,7 +23,8 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 spark_application_name = "WannaFlop_Project"
-spark = (SparkSession.builder.appName(spark_application_name).getOrCreate())
+spark = SparkSession.builder.appName(spark_application_name).getOrCreate()
+
 
 class Stock(object):
     def __init__(self, file_path, header=False, delimiter=";", schema=None):
@@ -97,6 +98,7 @@ class Stock(object):
             - Correlation
             - period (already done just need to add it)
         """
+
         def __init__(self, stock):
             self.stock = stock
 
@@ -142,15 +144,11 @@ class Stock(object):
 
         def _count_missing(self):
             cols = self.stock.df.columns
-            cols.remove('Date')
+            cols.remove("Date")
             return self.stock.df.select(
-                [
-                    count(when(isnan(c) | col(c).isNull(), c)).alias(c)
-                    for c in cols
-                ]
+                [count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in cols]
             )
-            #.show()
-
+            # .show()
 
     class Analysis:
         def __init__(self, stock):
@@ -158,33 +156,40 @@ class Stock(object):
             self.df = stock.df
 
         def get_oc_avg(self, period):
-            """ HANDLE BY WEEK"""
+            """HANDLE BY WEEK"""
             close = self._compute_avg(self.df, "Close", period)
             opening = self._compute_avg(self.df, "Open", period)
 
-            return close.join(opening, opening.Date ==
-            close.Date,"inner").select(close.Date, close.Close_mean, opening.Open_mean).orderBy("Date")
+            return (
+                close.join(opening, opening.Date == close.Date, "inner")
+                .select(close.Date, close.Close_mean, opening.Open_mean)
+                .orderBy("Date")
+            )
 
         def get_price_change(self, period=None):
             df = self.df
             if period:
-                df= self.get_oc_avg(period)
-           
-            return  df.withColumn('diff', ( df['Close_mean'] - df['Open_mean'] ))
+                df = self.get_oc_avg(period)
 
-        def get_daily_return(self, period=None, start_price=None, nb_shares=1):
-            """ COMMENT CA MARCHE???"""
+            return df.withColumn("diff", (df["Close_mean"] - df["Open_mean"]))
+
+        def get_daily_return(self, period="day", start_price=None, nb_shares=1):
             df = self.get_price_change(period)
             if not start_price:
-                start_price =  df['Open_mean']
-            daily_r = df.withColumn("daily_r", (df['Diff'] * nb_shares) / start_price)
-            return daily_r.show()
-             
+                start_price = df["Open_mean"]
+
+            daily_r = df.withColumn("daily_r", (df["Diff"] * nb_shares) / start_price)
+            return daily_r
+
+        def get_daily_return_max(self):
+            
 
         def _compute_avg(self, df, col, period):
             date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
-            df = df.withColumn('Date',
-            func.date_format(func.col('Date'),date[period])).groupBy('Date').agg(mean(col).alias(col+ "_mean")).orderBy("Date")
+            df = (
+                df.withColumn("Date", func.date_format(func.col("Date"), date[period]))
+                .groupBy("Date")
+                .agg(mean(col).alias(col + "_mean"))
+                .orderBy("Date")
+            )
             return df
-
-    
