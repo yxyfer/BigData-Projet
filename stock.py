@@ -51,7 +51,7 @@ class Stock(object):
         rounded_df = self.df
         dbl_cols = self._get_num_cols()
         for col in dbl_cols:
-            rounded_df = rounded_df.withColumn(col, func.round("high"))
+            rounded_df = rounded_df.withColumn(col, func.round(col))
 
         return rounded_df
 
@@ -131,7 +131,7 @@ class Stock(object):
             summary = rounded_df.summary()
             cols = self.stock._get_num_cols()
             for col in cols:
-                summary = summary.withColumn(col, func.round("high"))
+                summary = summary.withColumn(col, func.round(col))
             print("Stock Stats:")
             summary.show()
 
@@ -176,9 +176,10 @@ class Stock(object):
         def get_daily_return(self, period="day", start_price=None, nb_shares=1):
             df = self.get_price_change(period)
             if not start_price:
-                start_price = df["Open_mean"]
+                start_price = df["Open_mean"] * nb_shares
 
-            daily_r = df.withColumn("daily_r", (df["Diff"] * nb_shares) / start_price)
+            daily_r = df.withColumn("daily_r", ((df["Diff"] * nb_shares) /
+            start_price) * 100)
             return daily_r
 
         def get_daily_return_max(self, period="day", start_price=None, nb_shares=1):
