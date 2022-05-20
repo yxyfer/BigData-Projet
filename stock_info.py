@@ -162,11 +162,8 @@ class Stock(object):
             close = self._compute_avg(self.df, "Close", fun)
             opening = self._compute_avg(self.df, "Open", fun)
 
-            return close.join(
-                opening, opening.Open_new_time == close.Close_new_time, "inner"
-            ).orderBy("Close_new_time").select(
-                close.Close_new_time, close.Close_mean, opening.Open_mean
-            )
+            return close.join(opening, opening.Date ==
+            close.Date,"inner").select(close.Date, close.Close_mean, opening.Open_mean).orderBy("Date")
 
         def get_price_change(self, period=None):
             df = self.df
@@ -181,13 +178,12 @@ class Stock(object):
             daily_r = df.withColumn("daily_r", (df['Diff'] / df['Open_mean']))
             return daily_r.show()
              
-            
-            
 
         def _compute_avg(self, df, col, period):
             date = {"month": "yyyy-MM", "year": "yyyy"}
-            df = df.withColumn('Date', func.date_format(func.col('Date'), date[period])).groupBy('Date').agg(func.mean(col))
-            return df #.orderBy(col("Date").asc())
+            df = df.withColumn('Date',
+            func.date_format(func.col('Date'),date[period])).groupBy('Date').agg(mean(col).alias(col+ "_mean")).orderBy("Date")
+            return df
 
 #            return df.groupBy(fun("Date").alias(col + "_new_time")).agg(
 #                mean(col).alias(col + "_mean")
