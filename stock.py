@@ -123,11 +123,10 @@ class Stock(object):
 
             # Last 40 rows
             print("Last 40 rows:")
-            rounded_df = rounded_df.withColumn("index", monotonically_increasing_id())
-            rounded_df.orderBy(desc("index")).drop("index").show(40)
+            rounded_df.orderBy(desc("Date")).show(40)
 
         def get_stats(self):
-            rounded_df = self.stock._get_rounded_df()
+            rounded_df = self.stock.df
             summary = rounded_df.summary()
             cols = self.stock._get_num_cols()
             for col in cols:
@@ -146,7 +145,7 @@ class Stock(object):
             cols = self.stock.df.columns
             cols.remove("Date")
             return self.stock.df.select(
-                [count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in cols]
+                [count(when(isnan(c), c)).alias(c) for c in cols]
             )
             # .show()
 
@@ -173,7 +172,7 @@ class Stock(object):
 
             return df.withColumn("diff", (df["Close_mean"] - df["Open_mean"]))
 
-        def get_daily_return(self, period="day", start_price=None, nb_shares=1):
+        def get_daily_return_rate(self, period="day", start_price=None, nb_shares=1):
             df = self.get_price_change(period)
             if not start_price:
                 start_price = df["Open_mean"] * nb_shares
@@ -182,9 +181,17 @@ class Stock(object):
             start_price) * 100)
             return daily_r
 
-        def get_daily_return_max(self, period="day", start_price=None, nb_shares=1):
+
+        def get_daily_return(self, period="day"):
+            return self.get_price_change(period)
+
+        def get_daily_return_max(self, period="day"):
+            df = self.get_daily_return(period)
+            return df.select(func.max('diff')).first()[0]
+
+        def get_daily_return_rate_max(self, period="day", start_price=None, nb_shares=1):
             df = self.get_daily_return(period, start_price, nb_shares)
-            return df.select(func.max('daily_r')).first()[0]
+            return df.select(func.max('diff')).first()[0]
 
         def _compute_avg(self, df, col, period):
             date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
