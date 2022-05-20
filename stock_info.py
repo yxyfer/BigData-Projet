@@ -172,10 +172,12 @@ class Stock(object):
            
             return  df.withColumn('diff', ( df['Close_mean'] - df['Open_mean'] ))
 
-        def get_daily_return(self, period=None):
+        def get_daily_return(self, period=None, start_price=None, nb_shares=1):
             """ COMMENT CA MARCHE???"""
             df = self.get_price_change(period)
-            daily_r = df.withColumn("daily_r", (df['Diff'] / df['Open_mean']))
+            if not start_price:
+                start_price =  df['Open_mean']
+            daily_r = df.withColumn("daily_r", (df['Diff'] * nb_shares) / start_price)
             return daily_r.show()
              
 
@@ -184,9 +186,5 @@ class Stock(object):
             df = df.withColumn('Date',
             func.date_format(func.col('Date'),date[period])).groupBy('Date').agg(mean(col).alias(col+ "_mean")).orderBy("Date")
             return df
-
-#            return df.groupBy(fun("Date").alias(col + "_new_time")).agg(
-#                mean(col).alias(col + "_mean")
-#            )
 
     
