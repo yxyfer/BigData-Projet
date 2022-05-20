@@ -157,10 +157,10 @@ class Stock(object):
             self.stock = stock
             self.df = stock.df
 
-        def get_oc_avg(self, fun):
+        def get_oc_avg(self, period):
             """ HANDLE BY WEEK"""
-            close = self._compute_avg(self.df, "Close", fun)
-            opening = self._compute_avg(self.df, "Open", fun)
+            close = self._compute_avg(self.df, "Close", period)
+            opening = self._compute_avg(self.df, "Open", period)
 
             return close.join(opening, opening.Date ==
             close.Date,"inner").select(close.Date, close.Close_mean, opening.Open_mean).orderBy("Date")
@@ -182,7 +182,7 @@ class Stock(object):
              
 
         def _compute_avg(self, df, col, period):
-            date = {"month": "yyyy-MM", "year": "yyyy"}
+            date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
             df = df.withColumn('Date',
             func.date_format(func.col('Date'),date[period])).groupBy('Date').agg(mean(col).alias(col+ "_mean")).orderBy("Date")
             return df
