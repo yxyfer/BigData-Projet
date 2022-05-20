@@ -3,6 +3,7 @@ import pandas as pd
 
 from pyspark.sql.functions import col, isnan, when, count
 from pyspark.sql.functions import mean
+from pyspark.sql.functions import col, asc,desc
 from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql.types import (
     DoubleType,
@@ -157,6 +158,7 @@ class Stock(object):
             self.df = stock.df
 
         def get_oc_avg(self, fun):
+            """ HANDLE BY WEEK"""
             close = self._compute_avg(self.df, "Close", fun)
             opening = self._compute_avg(self.df, "Open", fun)
 
@@ -173,7 +175,22 @@ class Stock(object):
            
             return  df.withColumn('diff', ( df['Close_mean'] - df['Open_mean'] ))
 
-        def _compute_avg(self, df, col, fun):
-            return df.groupBy(fun("Date").alias(col + "_new_time")).agg(
-                mean(col).alias(col + "_mean")
-            )
+        def get_daily_return(self, period=None):
+            """ COMMENT CA MARCHE???"""
+            df = self.get_price_change(period)
+            daily_r = df.withColumn("daily_r", (df['Diff'] / df['Open_mean']))
+            return daily_r.show()
+             
+            
+            
+
+        def _compute_avg(self, df, col, period):
+            date = {"month": "yyyy-MM", "year": "yyyy"}
+            df = df.withColumn('Date', func.date_format(func.col('Date'), date[period])).groupBy('Date').agg(func.mean(col))
+            return df #.orderBy(col("Date").asc())
+
+#            return df.groupBy(fun("Date").alias(col + "_new_time")).agg(
+#                mean(col).alias(col + "_mean")
+#            )
+
+    
