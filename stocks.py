@@ -24,6 +24,7 @@ class Stocks(object):
         return dfs
 
     def get_max_daily_return(self):
+        # get the maximum daily return for each stocks
         max_daily_returns = {}
         for stock in self.stocks:
             cmpny_name = stock.df.select("company_name").first()[0]

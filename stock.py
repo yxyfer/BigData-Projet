@@ -214,12 +214,12 @@ class Stock(object):
             if period == "week":
                 return (
                     close.join(opening, (opening.Date == close.Date) & (opening.Week_number == close.Week_number), "inner")
-                    .select(close.Date, close.Week_number, close.Close_mean, opening.Open_mean)
+                    .select(close.Date, close.Week_number, opening.Open_mean,  close.Close_mean)
                     .orderBy("Date", "Week_number")
                 )
             return (
                 close.join(opening, opening.Date == close.Date, "inner")
-                .select(close.Date, close.Close_mean, opening.Open_mean)
+                .select(close.Date, opening.Open_mean, close.Close_mean)
                 .orderBy("Date")
             )
         
@@ -229,15 +229,25 @@ class Stock(object):
                 self.get_oc_avg(period).show()
 
         def get_daily_return(self, period="day"):
+            # get daily return by period
             df = self.get_oc_avg(period)
             return df.withColumn("daily_return_" + period, (df["Close_mean"] - df["Open_mean"]))
         
         def print_daily_return(self):
-            self.get_daily_return("day").show()
+            self.get_daily_return("day").drop("Open_mean", "Close_mean").show()
 
         def print_daily_return_avg(self):
             for period in ["week", "month", "year"]:
-                self.get_daily_return(period).show()
+                if period == "week":
+                    self.get_daily_return(period)\
+                    .select("Date", "Week_number",
+                            col("daily_return_" + period).alias("avg_daily_return_" + period))\
+                    .show()
+                else:
+                    self.get_daily_return(period)\
+                    .select("Date",
+                            col("daily_return_" + period).alias("avg_daily_return_" + period))\
+                    .show()
 
         def get_daily_return_rate(self, period="day", start_price=None, nb_shares=1):
             df = self.get_daily_return(period)
@@ -284,8 +294,9 @@ class Stock(object):
                 self.get_price_change(period).show()
 
         def get_daily_return_max(self, period="day"):
+            # get maximum daily return by period
             df = self.get_daily_return(period)
-            return df.select(func.max('diff')).first()[0]
+            return df.select(func.max('daily_return_' + period)).first()[0]
 
         def get_daily_return_rate_max(self, period="day", start_price=None, nb_shares=1):
             df = self.get_daily_return(period, start_price, nb_shares)
