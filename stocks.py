@@ -1,6 +1,12 @@
 from stock import Stock
+import pyspark.sql.functions as func
+from pyspark.sql.functions import col
 
 import glob
+
+# only used to print informations
+import pandas as pd
+import numpy as np
 
 class Stocks(object):
     def __init__(self, files=None, header=False, delimiter=";", schema=None):
@@ -31,6 +37,41 @@ class Stocks(object):
             max_daily_returns[cmpny_name] = (stock.analysis.get_daily_return_max())
 
         return dict(sorted(max_daily_returns.items(), key=lambda item: item[1], reverse=True))
+    
+    def get_correlation(self, stock1, stock2):
+        # get correlation between two stocks
+        
+        # rename columns
+        df_stock1 = stock1.select([col(col_name).alias(col_name + "_stock1") for col_name in stock1.columns])
+        
+        df_stock2 = stock2.select([col(col_name).alias(col_name + "_stock2") for col_name in stock2.columns])
+        
+        # join dataframes
+        df = df_stock1.join(df_stock2, df_stock1.Date_stock1 == df_stock2.Date_stock2, "inner")
+        
+        # get columns with double type
+        cols = [col_info[0] for col_info in stock1.dtypes if col_info[1] == "double"]
+        
+        # get correlation
+        res = pd.DataFrame(1, index=["correlation"], columns=cols, dtype=np.double)
+        for col_name in cols:
+            res[col_name] = df.stat.corr(col_name + "_stock1", col_name + "_stock2")
+        
+        return res
+    
+    def print_correlations(self):
+        # print correlation between each stock
+        corrs = []
+        
+        print("Correlation between each stock:\n")
+        
+        for x in range(len(self.stocks)):
+            for y in range(x + 1, len(self.stocks)):
+                corr = self.get_correlation(self.stocks[x].df, self.stocks[y].df)
+                corr.index = [self.stocks[x].get_name() + " x " + self.stocks[y].get_name()]
+                corrs.append(corr)
+    
+        print(pd.concat(corrs))
     
     def call_explore_function(self, function_name):
         # call a specific function to each explore object of each stock

@@ -51,9 +51,12 @@ class Stock(object):
         self.explore = self.Explore(self)
         self.analysis = self.Analysis(self)
         
+    def get_name(self):
+        return self.file_path.split(".")[-2].split("/")[-1]
+    
     def print_name(self):
         # print the name of the stock
-        name = self.file_path.split(".")[-2].split("/")[-1]
+        name = self.get_name()
         print("###########" + "#" * len(name) + "###########")
         print("########## " + name + " ##########")
         print("###########" + "#" * len(name) + "###########\n")
