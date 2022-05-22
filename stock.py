@@ -12,7 +12,8 @@ from pyspark.sql.functions import (
     datediff,
     asc,
     desc,
-    monotonically_increasing_id
+    monotonically_increasing_id,
+    lit
 )
 from pyspark.sql.types import (
     DoubleType,
@@ -305,6 +306,20 @@ class Stock(object):
             df = self.get_daily_return(period, start_price, nb_shares)
             return df.select(func.max('diff')).first()[0]
 
+        def moving_average(self, df=None, col='Close', nb_points=5):
+            SECS_IN_DAY = 86400
+            period = nb_points * SECS_IN_DAY
+
+            if not df:
+                df = self.stock.df
+
+            df = df.withColumn('Date2', df.Date.cast('timestamp'))
+            window = Window().partitionBy(lit('Date2')).orderBy(func.col("Date2").cast('long')).rangeBetween(-period, 0)
+
+            df = df.withColumn('moving_average_' + col, func.avg(col).over(window)).select('Date', 'moving_average_'+ col)
+
+            return df.show()
+            
         def _compute_avg(self, df, col, period):
             # compute the average value of a column by a period
             if period == "week":
