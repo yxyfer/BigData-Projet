@@ -228,7 +228,7 @@ class Stock(object):
             for period in ["week", "month", "year"]:
                 self.get_oc_avg(period).show()
 
-        def get_price_change(self, period=None):
+        def get_daily_return(self, period=None):
             df = self.df
             if period:
                 df = self.get_oc_avg(period)
@@ -237,12 +237,15 @@ class Stock(object):
             return df.withColumn("diff", (df["Close"] - df["Open"]))
         
         
-        def print_price_change(self):
-            for period in ["day", "month"]:
-                self.get_price_change(period).show()
+        def print_daily_return(self):
+            self.get_daily_return("day").show()
+
+        def print_daily_return_avg(self):
+            for period in ["week", "month", "year"]:
+                self.get_daily_return(period).show()
 
         def get_daily_return_rate(self, period="day", start_price=None, nb_shares=1):
-            df = self.get_price_change(period)
+            df = self.get_daily_return(period)
             if not start_price:
                 start_price = df["Open_mean"] * nb_shares
 
@@ -251,8 +254,8 @@ class Stock(object):
             return daily_r
 
 
-        def get_daily_return(self, period="day"):
-            return self.get_price_change(period)
+        def get_price_change(self, period="day"):
+            return self.get_daily_return(period)
 
         def get_daily_return_max(self, period="day"):
             df = self.get_daily_return(period)
