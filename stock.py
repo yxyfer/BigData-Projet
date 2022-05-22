@@ -364,6 +364,37 @@ class Stock(object):
 
             return df.show()
 
+        def get_window_return_rate(self,start_date, period="month", nb_days=None):
+            """
+            # return is in % already !!!!!! 
+            """
+            df = self.stock.df
+            period_days = {"month": 30, "year": 365}
+            if not nb_days:
+                nb_days = period_days[period]
+                
+            nb_days += 1 # For the exclusive end
+            date_from = func.to_date(lit(start_date))
+            date_from = func.date_add(date_from, -1)
+            date_to = func.date_add(date_from, nb_days)
+            df = df.filter(df.Date > date_from).filter(df.Date <
+            date_to).select("Date", "Open", "Close")
+
+            SECS_IN_DAY = 86400 * nb_days
+            period = period * SECS_IN_DAY
+            df = df.withColumn(
+                "window_return", (df["Close"] - df["Open"])
+            )
+
+            start_price = df.first()['Open']
+            daily_r = df.withColumn(
+                "eee",
+                ((df["window_return"]) / start_price) * 100,
+            )#.drop("Open_mean", "Close_mean", "daily_return_" + period)
+
+            # return is in % already !!!!!! 
+            return daily_r.agg(func.avg('eee').alias('avg')).first()[0]
+
         def _compute_avg(self, df, col, period):
             # compute the average value of a column by a period
             if period == "week":
