@@ -229,12 +229,8 @@ class Stock(object):
                 self.get_oc_avg(period).show()
 
         def get_daily_return(self, period="day"):
-            if period:
-                df = self.get_oc_avg(period)
-                return df.withColumn("daily_return_" + period, (df["Close_mean"] - df["Open_mean"]))
-
-            return df.withColumn("daily_return_" + period, (df["Close"] - df["Open"]))
-        
+            df = self.get_oc_avg(period)
+            return df.withColumn("daily_return_" + period, (df["Close_mean"] - df["Open_mean"]))
         
         def print_daily_return(self):
             self.get_daily_return("day").show()
@@ -257,7 +253,35 @@ class Stock(object):
                 self.get_daily_return_rate(period).show()
 
         def get_price_change(self, period="day"):
-            return self.get_daily_return(period)
+            # compute the price change by a period
+            df = self.df
+            
+            # get periods value for each row
+            date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
+            df = df.withColumn("Date_period", func.date_format(func.col("Date"), date[period]))
+            
+            # get first and last row of periods
+            w = Window.partitionBy("Date_period")
+            
+            df_first = df.withColumn("Date_first", func.min("Date").over(w))\
+            .where(col("Date") == col("Date_first"))\
+            .select("Date_period", "Open")
+            
+            df_last = df.withColumn("Date_last", func.max("Date").over(w))\
+            .where(col("Date") == col("Date_last"))\
+            .select(col("Date_period").alias("Date_period_last"), "Close")
+            
+            # join results
+            df = df_first.join(df_last, df_first.Date_period == df_last.Date_period_last, "inner")\
+            .select("Date_period", "Open", "Close")\
+            .orderBy("Date_period")
+            
+            return df.withColumn("price_change", (df["Close"] - df["Open"]))\
+        .select(col("Date_period").alias("Date_period_" + period), "price_change")
+        
+        def print_price_change(self):
+            for period in ["day", "month", "year"]:
+                self.get_price_change(period).show()
 
         def get_daily_return_max(self, period="day"):
             df = self.get_daily_return(period)
