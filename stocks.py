@@ -72,7 +72,20 @@ class Stocks(object):
                 corrs.append(corr)
     
         print(pd.concat(corrs))
+
+    def period_return_rate(self,start_date, period="month", nb_days=None):
+        return_rates = {}
+        for stock in self.stocks:
+            cmpny_name = stock.df.select("company_name").first()[0]
+            return_rates[cmpny_name] = stock.analysis.get_window_return_rate(start_date, period, nb_days)
+
+        return_rates = dict(sorted(return_rates.items(), key=lambda item: item[1], reverse=True))
+        return return_rates
     
+    def max_period_return_rate(self,start_date, period="month", nb_days=None):
+        return_rates = self.period_return_rate(start_date, period, nb_days)
+        return list(return_rates.items())[0][0]
+        
     def call_explore_function(self, function_name):
         # call a specific function to each explore object of each stock
         for stock in self.stocks:
