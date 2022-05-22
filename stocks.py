@@ -86,3 +86,10 @@ class Stocks(object):
             stock.print_name()
             func = getattr(stock.analysis, function_name)
             func()
+    
+    def call_insight_function(self, function_name):
+        # call a specific function to each analysis object of each stock
+        for stock in self.stocks:
+            stock.print_name()
+            func = getattr(stock.insight, function_name)
+            func()

@@ -1,5 +1,7 @@
 from pyspark.sql import SparkSession
 
+import matplotlib.pyplot as plt
+
 import pyspark.sql.functions as func
 from pyspark.sql.functions import (
     col,
@@ -11,6 +13,7 @@ from pyspark.sql.functions import (
     isnull,
     datediff,
     asc,
+    lit,
     desc,
     monotonically_increasing_id
 )
@@ -50,6 +53,7 @@ class Stock(object):
         # save the Explore and Analysis objects of the current stock
         self.explore = self.Explore(self)
         self.analysis = self.Analysis(self)
+        self.insight = self.Insight(self)
         
     def get_name(self):
         return self.file_path.split(".")[-2].split("/")[-1]
@@ -326,3 +330,155 @@ class Stock(object):
                 .orderBy("Date")
             )
             return df
+
+
+    class Insight:
+
+        def __init__(self, stock):
+            # save attributs
+            self.stock = stock
+            
+        def get_r_de_williams(self, n_days = 14):
+            df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+            
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+            .orderBy(col("Date2").cast("long"))\
+            .rangeBetween(-period, 0)
+
+            df = df.withColumn("PBn", func.min("Low").over(w))
+            df = df.withColumn("PHn", func.max("High").over(w))
+            df = df.withColumn("R_de_williams", 100 - ((df["PHn"] - df["Close"]) / (df["PHn"] - df["PBn"])) * 100).drop("PHn", "PBn", "Date2")
+            
+            return df
+        
+        def print_r_de_williams(self, n_days = 14):
+            self.get_r_de_williams(n_days).select("Date", "R_de_williams").show()
+        
+        
+        def plot_r_de_williams(self, n_days = 30):
+            df = self.get_r_de_williams(n_days).select("Date", "R_de_williams").toPandas()
+            df.set_index("Date", inplace=True)
+            
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.axhline(20, color='r')
+            plt.axhline(50, color='g')
+            plt.axhline(80, color='r')
+            plt.show()
+            
+        def get_momentum_roc(self, n_days = 12, is_momentum=True):
+            df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+            
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+            .orderBy(col("Date2").cast("long"))\
+            .rangeBetween(-period, 0)
+
+            df = df.withColumn("n_close", func.first("Close").over(w))
+            if is_momentum:
+                df = df.withColumn("momentum", df["Close"] - df["n_close"]).drop("n_close", "Date2")
+            else:
+                df = df.withColumn("momentum", df["Close"] / df["n_close"]).drop("n_close", "Date2")
+            
+            return df
+        
+        def print_momentum(self, n_days = 12):
+            self.get_momentum_roc(n_days).select("Date", "momentum").show()
+        
+        
+        def plot_momentum(self, n_days = 30):
+            df = self.get_momentum_roc(n_days).select("Date", "momentum").toPandas()
+            df.set_index("Date", inplace=True)
+            
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
+        
+            
+        def print_roc(self, n_days = 25):
+            self.get_momentum_roc(n_days, is_momentum=False).select("Date", "momentum").show()
+        
+        
+        def plot_roc(self, n_days = 30):
+            df = self.get_momentum_roc(n_days, is_momentum=False).select("Date", "momentum").toPandas()
+            df.set_index("Date", inplace=True)
+            
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
+            
+        def get_cci(self, n_days = 14):
+            df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+            
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+            .orderBy(col("Date2").cast("long"))\
+            .rangeBetween(-period, 0)
+
+            df = df.withColumn("TP", (df["High"] + df["low"] + df["Close"])/3)
+            df = df.withColumn("SMATP", func.avg("TP").over(w))
+            
+            df = df.withColumn("D", func.abs(df["TP"] - df["SMATP"]))
+            df = df.withColumn("M", func.avg("D").over(w)*0.015)
+            
+            df = df.withColumn("CCI", (df["TP"] - df["SMATP"])/df["M"])
+            
+            return df
+        
+        def print_cci(self, n_days = 14):
+            self.get_cci(n_days).select("Date", "CCI").show()
+        
+        
+        def plot_cci(self, n_days = 14):
+            df = self.get_cci(n_days).select("Date", "CCI").toPandas()
+            df.set_index("Date", inplace=True)
+            
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.axhline(-100, color='r')
+            plt.axhline(0, color='g')
+            plt.axhline(100, color='r')
+            plt.show()
+            
+        def get_gc(self, n_days = 14):
+            df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+            
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+            .orderBy(col("Date2").cast("long"))\
+            .rangeBetween(-period, 0)
+            
+            df = df.withColumn("F", (func.count("Date").over(w)+ 1)/2)
+            df = df.withColumn("A", func.dense_rank().over(w) * df["Close"])
+            df = df.withColumn("GC", df["F"] - (df["A"] / df["Close"]))
+            
+            return df
+        
+        def print_gc(self, n_days = 14):
+            self.get_gc(n_days).select("Date", "GC").show()
+        
+        
+        def plot_gc(self, n_days = 14):
+            df = self.get_gc(n_days).select("Date", "GC").toPandas()
+            df.set_index("Date", inplace=True)
+            
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
