@@ -495,11 +495,11 @@ class Stock(object):
         
             
         def print_roc(self, n_days = 25):
-            self.get_momentum_roc(n_days, is_momentum=False).select("Date", "momentum").show()
+            self.get_momentum_roc(n_days, is_momentum=False).select("Date", "roc").show()
         
         
         def plot_roc(self, n_days = 30):
-            df = self.get_momentum_roc(n_days, is_momentum=False).select("Date", "momentum").toPandas()
+            df = self.get_momentum_roc(n_days, is_momentum=False).select("Date", "roc").toPandas()
             df.set_index("Date", inplace=True)
             
             fig = plt.figure(figsize=(30, 10))
