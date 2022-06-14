@@ -10,10 +10,10 @@
 ```sh
 .
 ├── README.md
-├── TP
-│   └── pyspark_introduction_tutorials.ipynb
 ├── project.ipynb
 ├── resources
+│   ├── TP
+│   │   └── pyspark_introduction_tutorials.ipynb
 │   └── spark_stocks_data_labs.pdf
 ├── src
 │   ├── stock.py
