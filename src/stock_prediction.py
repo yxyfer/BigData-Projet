@@ -14,39 +14,50 @@ from pyspark.ml.feature import VectorAssembler
 from pyspark.mllib.util import MLUtils
 from pyspark.mllib.tree import GradientBoostedTrees, GradientBoostedTreesModel
 
-# To SPlit the dataset
-from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import RFormula
+from pyspark.ml.regression import LinearRegression
 
 
-class stockPricePredict(object):
-    def __init__(self, df):
-        self.df = df
-        self.trainDF, self.testDF = self._train_split()
+class StockPrediction(object):
+    def __init__(self, stock):
+        self.stock = stock
+        self.predict = self.stock.predict
 
     def _train_split(self):
-        trainDF, testDF = self.df.randomSplit([0.8, 0.2], seed=42)
+        return self.predict.fullDF.randomSplit([0.8, 0.2], seed=42)
 
-    def linear_regression(self):
+    def linear_regression(self, predicting_col="Close"):
+        self.predict.load_insights(predicting_col)
+        self.trainDF, self.testDF = self._train_split()
 
-        # Load and parse the data file.
-        # data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
-        data = self.df
-
-        # Split the data into training and test sets (30% held out for testing)
-        (trainingData, testData) = data.randomSplit([0.7, 0.3])
-
-        # Train a GradientBoostedTrees model.
-        #  Notes: (a) Empty categoricalFeaturesInfo indicates all features are continuous.
-        #         (b) Use more iterations in practice.
-        model = GradientBoostedTrees.trainClassifier(
-            trainingData, categoricalFeaturesInfo={}, numIterations=3
+        rFormula = RFormula(
+            formula="next_" + predicting_col + " ~ . - Date",
+            featuresCol="features"
         )
 
-        # Evaluate model on test instances and compute test error
-        predictions = model.predict(testData.map(lambda x: x.features))
-        labelsAndPredictions = testData.map(lambda lp: lp.label
-                                           ).zip(predictions)
-        testErr = labelsAndPredictions.filter(lambda lp: lp[0] != lp[1]).count(
-        ) / float(testData.count())
-        print("Test Error = " + str(testErr))
-        print("Learned classification GBT model:")
+        lr = LinearRegression(
+            labelCol="next_" + predicting_col,
+            predictionCol="pred_next_" + predicting_col
+        )
+
+        pipeline = Pipeline(stages=[rFormula, lr])
+        model = pipeline.fit(self.trainDF)
+
+        return model
+
+    def exe_linear_regression(self, predicting_col="Close"):
+        return self.linear_regression(predicting_col).transform(self.testDF)
+
+    def draw(self, predicting_col="Close"):
+        pred = self.exe_linear_regression(predicting_col)
+
+        real = pred.select("next_" + predicting_col)
+        predicted = pred.select("pred_next_" + predicting_col)
+
+        plt.plot(real.toPandas(), label="Real next " + predicting_col)
+        plt.plot(predicted.toPandas(), label="Predicted next " + predicting_col)
+
+        plt.show()
