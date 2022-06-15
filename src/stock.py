@@ -673,6 +673,38 @@ class Stock(object):
             fig = plt.figure(figsize=(30, 10))
             df.plot()
             plt.show()
+        def get_bof(self, n_days = 14, df = None):
+            if df is None:
+                df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+                    .orderBy(col("Date2").cast("long"))\
+                    .rangeBetween(-period, 0)
+
+            df = df.withColumn("BOF", func.avg((df["Close"] - df["Open"]) / (df["High"] - df["Low"])).over(w))
+
+            return df
+
+        def print_bof(self, n_days = 14):
+            self.get_bof(n_days).select("Date", "Close", "BOF").show()
+
+
+        def plot_bof(self, n_days = 14):
+            df = self.get_bof(n_days)
+            df1 = df.select("Date", "Close").toPandas()
+            df2 = df.select("Date", "BOF").toPandas()
+            df1.set_index("Date", inplace=True)
+            df2.set_index("Date", inplace=True)
+
+            fig = plt.figure(figsize=(30, 10))
+            df1.plot()
+            df2.plot()
+            plt.show()
     class Predict:
         def __init__(self, stock):
             # save attributs
