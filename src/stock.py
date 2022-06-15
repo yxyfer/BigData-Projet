@@ -673,6 +673,8 @@ class Stock(object):
             fig = plt.figure(figsize=(30, 10))
             df.plot()
             plt.show()
+
+
         def get_bof(self, n_days = 14, df = None):
             if df is None:
                 df = self.stock.df
@@ -705,6 +707,7 @@ class Stock(object):
             df1.plot()
             df2.plot()
             plt.show()
+
     class Predict:
         def __init__(self, stock):
             # save attributs
@@ -763,6 +766,26 @@ class Stock(object):
             df = self.stock.insight.get_r_de_williams(
                 df=df
             ).drop("Date2", "PBn", "PHn")
+
+            # add bb
+            df = self.stock.insight.get_bb(
+                df=df
+            ).drop("date2", "bb_std")
+
+            # add kb
+            df = self.stock.insight.get_kb(
+                df=df
+            ).drop("date2", "kb_lc", "kb_tr", "kb_atr")
+
+            # add dpo
+            df = self.stock.insight.get_dpo(
+                df=df
+            ).drop("date2", "dpo_mm", "dpo_close")
+
+            # add bof
+            df = self.stock.insight.get_bof(
+                df=df
+            ).drop("date2")
 
             return df
 
