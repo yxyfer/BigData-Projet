@@ -4,30 +4,29 @@ import matplotlib.pyplot as plt
 
 import pyspark.sql.functions as func
 from pyspark.sql.functions import (
-        col,
-        isnan,
-        when,
-        count,
-        mean,
-        lag,
-        lead,
-        isnull,
-        datediff,
-        asc,
-        lit,
-        desc,
-        monotonically_increasing_id,
-        lit,
-        )
+    col,
+    isnan,
+    when,
+    count,
+    mean,
+    lag,
+    lead,
+    isnull,
+    datediff,
+    asc,
+    lit,
+    desc,
+    monotonically_increasing_id,
+    lit,
+)
 from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        DateType,
-        StructType,
-        StructField,
-        )
-
+    DoubleType,
+    IntegerType,
+    StringType,
+    DateType,
+    StructType,
+    StructField,
+)
 
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
@@ -36,10 +35,6 @@ from pyspark.sql.window import Window
 # only used to print informations
 import pandas as pd
 import numpy as np
-
-from pyspark.ml import Pipeline
-from pyspark.ml.feature import RFormula
-from pyspark.ml.regression import LinearRegression
 
 spark_application_name = "WannaFlop_Project"
 spark = SparkSession.builder.appName(spark_application_name).getOrCreate()
@@ -75,10 +70,10 @@ class Stock(object):
     def _get_num_cols(self):
         # get column names with double or integer type
         num_cols = [
-                f.name
-                for f in self.df.schema.fields
-                if isinstance(f.dataType, DoubleType) or isinstance(f.dataType, IntegerType)
-                ]
+            f.name for f in self.df.schema.fields
+            if isinstance(f.dataType, DoubleType) or
+            isinstance(f.dataType, IntegerType)
+        ]
 
         return num_cols
 
@@ -93,15 +88,14 @@ class Stock(object):
     def _handle_csv(self):
         # Read the csv file and return a Spark DataFrame
         return (
-                spark.read.option("inferSchema", "true")
-                .option("nullValue", "null")
-                .csv(
-                    self.file_path,
-                    sep=self.delimiter,
-                    schema=self.schema,
-                    header=self.header,
-                    )
-                )
+            spark.read.option("inferSchema",
+                              "true").option("nullValue", "null").csv(
+                                  self.file_path,
+                                  sep=self.delimiter,
+                                  schema=self.schema,
+                                  header=self.header,
+                              )
+        )
 
     def _handle_json(self):
         # Read the json file and return a Spark DataFrame
@@ -111,15 +105,16 @@ class Stock(object):
         # load the file depending of the extension
         df = None
 
-        extension = self.file_path.split(".")[-1] if "." in self.file_path else ""
+        extension = self.file_path.split("."
+                                        )[-1] if "." in self.file_path else ""
         if extension == "json":
             df = self._handle_json()
         elif extension == "csv":
             df = self._handle_csv()
         else:
             raise Exception(
-                    "Current file format is not handled yet. We support csv and json formats."
-                    )
+                "Current file format is not handled yet. We support csv and json formats."
+            )
 
         return df
 
@@ -159,8 +154,10 @@ class Stock(object):
             rounded_df = self.stock.df
             summary = rounded_df.summary()
             cols = self.stock._get_num_cols()
+
             for col in cols:
                 summary = summary.withColumn(col, func.round(col))
+
             print("Stock Stats:")
             summary.show()
 
@@ -181,22 +178,20 @@ class Stock(object):
                     res.loc[col_1, col_2] = cor
                     res.loc[col_2, col_1] = cor
 
-            print(res)
-            print("")
+            print(res + "\n")
 
         def period(self):
             # get the period between data points : "day", "week", "month", "year"
             my_window = Window.partitionBy().orderBy("Date")
-                        # add infos
+            # add infos
 
             df = self.stock.df
             df = df.withColumn("prev_value", lag(df.Date).over(my_window))
             df = df.withColumn(
-                    "diff",
-                    when(isnull(datediff(df.Date, df.prev_value)), 0).otherwise(
-                        datediff(df.Date, df.prev_value)
-                        ),
-                    )
+                "diff",
+                when(isnull(datediff(df.Date, df.prev_value)),
+                     0).otherwise(datediff(df.Date, df.prev_value)),
+            )
             mean_diff = df.select(mean("diff")).first()[0]
 
             if mean_diff < 4:
@@ -218,8 +213,8 @@ class Stock(object):
             cols = self.stock.df.columns
             cols.remove("Date")
             return self.stock.df.select(
-                    [count(when(isnan(c), c)).alias(c) for c in cols]
-                    )
+                [count(when(isnan(c), c)).alias(c) for c in cols]
+            )
 
     class Analysis:
         def __init__(self, stock):
@@ -233,25 +228,23 @@ class Stock(object):
 
             if period == "week":
                 return (
-                        close.join(
-                            opening,
-                            (opening.Date == close.Date)
-                            & (opening.Week_number == close.Week_number),
-                            "inner",
-                            )
-                        .select(
-                            close.Date,
-                            close.Week_number,
-                            opening.Open_mean,
-                            close.Close_mean,
-                            )
-                        .orderBy("Date", "Week_number")
-                        )
+                    close.join(
+                        opening,
+                        (opening.Date == close.Date) &
+                        (opening.Week_number == close.Week_number),
+                        "inner",
+                    ).select(
+                        close.Date,
+                        close.Week_number,
+                        opening.Open_mean,
+                        close.Close_mean,
+                    ).orderBy("Date", "Week_number")
+                )
             return (
-                    close.join(opening, opening.Date == close.Date, "inner")
-                    .select(close.Date, opening.Open_mean, close.Close_mean)
-                    .orderBy("Date")
-                    )
+                close.join(opening, opening.Date == close.Date, "inner").select(
+                    close.Date, opening.Open_mean, close.Close_mean
+                ).orderBy("Date")
+            )
 
         def print_get_oc_avg(self):
             # print average opening / closing price for each period
@@ -262,8 +255,8 @@ class Stock(object):
             # get daily return by period
             df = self.get_oc_avg(period)
             return df.withColumn(
-                    "daily_return_" + period, (df["Close_mean"] - df["Open_mean"])
-                    )
+                "daily_return_" + period, (df["Close_mean"] - df["Open_mean"])
+            )
 
         def print_daily_return(self):
             self.get_daily_return("day").drop("Open_mean", "Close_mean").show()
@@ -272,29 +265,30 @@ class Stock(object):
             for period in ["week", "month", "year"]:
                 if period == "week":
                     self.get_daily_return(period).select(
-                            "Date",
-                            "Week_number",
-                            col("daily_return_" + period).alias(
-                                "avg_daily_return_" + period
-                                ),
-                            ).show()
+                        "Date",
+                        "Week_number",
+                        col("daily_return_" +
+                            period).alias("avg_daily_return_" + period),
+                    ).show()
                 else:
                     self.get_daily_return(period).select(
-                            "Date",
-                            col("daily_return_" + period).alias(
-                                "avg_daily_return_" + period
-                                ),
-                            ).show()
+                        "Date",
+                        col("daily_return_" +
+                            period).alias("avg_daily_return_" + period),
+                    ).show()
 
-        def get_daily_return_rate(self, period="day", start_price=None, nb_shares=1):
+        def get_daily_return_rate(
+            self, period="day", start_price=None, nb_shares=1
+        ):
             df = self.get_daily_return(period)
             if not start_price:
                 start_price = df["Open_mean"] * nb_shares
 
             daily_r = df.withColumn(
-                    "daily_return_rate_" + period,
-                    ((df["daily_return_" + period] * nb_shares) / start_price) * 100,
-                    ).drop("Open_mean", "Close_mean", "daily_return_" + period)
+                "daily_return_rate_" + period,
+                ((df["daily_return_" + period] * nb_shares) / start_price) *
+                100,
+            ).drop("Open_mean", "Close_mean", "daily_return_" + period)
             return daily_r
 
         def print_daily_return_rate_avg(self):
@@ -308,36 +302,43 @@ class Stock(object):
             # get periods value for each row
             date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
             df = df.withColumn(
-                    "Date_period", func.date_format(func.col("Date"), date[period])
-                    )
+                "Date_period", func.date_format(func.col("Date"), date[period])
+            )
 
             # get first and last row of periods
             w = Window.partitionBy("Date_period")
 
             df_first = (
-                    df.withColumn("Date_first", func.min("Date").over(w))
-                    .where(col("Date") == col("Date_first"))
-                    .select("Date_period", "Open")
-                    )
+                df.withColumn("Date_first",
+                              func.min("Date").over(w)).where(
+                                  col("Date") == col("Date_first")
+                              ).select("Date_period", "Open")
+            )
 
             df_last = (
-                    df.withColumn("Date_last", func.max("Date").over(w))
-                    .where(col("Date") == col("Date_last"))
-                    .select(col("Date_period").alias("Date_period_last"), "Close")
-                    )
+                df.withColumn("Date_last",
+                              func.max("Date").over(w)).where(
+                                  col("Date") == col("Date_last")
+                              ).select(
+                                  col("Date_period").alias("Date_period_last"),
+                                  "Close"
+                              )
+            )
 
             # join results
             df = (
-                    df_first.join(
-                        df_last, df_first.Date_period == df_last.Date_period_last, "inner"
-                        )
-                    .select("Date_period", "Open", "Close")
-                    .orderBy("Date_period")
-                    )
+                df_first.join(
+                    df_last, df_first.Date_period == df_last.Date_period_last,
+                    "inner"
+                ).select("Date_period", "Open", "Close").orderBy("Date_period")
+            )
 
-            return df.withColumn("price_change", (df["Close"] - df["Open"])).select(
-                    col("Date_period").alias("Date_period_" + period), "price_change"
-                    )
+            return df.withColumn(
+                "price_change", (df["Close"] - df["Open"])
+            ).select(
+                col("Date_period").alias("Date_period_" + period),
+                "price_change"
+            )
 
         def print_price_change(self):
             for period in ["day", "month", "year"]:
@@ -349,8 +350,8 @@ class Stock(object):
             return df.select(func.max("daily_return_" + period)).first()[0]
 
         def get_daily_return_rate_max(
-                self, period="day", start_price=None, nb_shares=1
-                ):
+            self, period="day", start_price=None, nb_shares=1
+        ):
             df = self.get_daily_return(period, start_price, nb_shares)
             return df.select(func.max("diff")).first()[0]
 
@@ -363,22 +364,26 @@ class Stock(object):
 
             df = df.withColumn("Date2", df.Date.cast("timestamp"))
             window = (
-                    Window()
-                    .partitionBy(lit("Date2"))
-                    .orderBy(func.col("Date2").cast("long"))
-                    .rangeBetween(-period, 0)
-                    )
+                Window().partitionBy(lit("Date2")).orderBy(
+                    func.col("Date2").cast("long")
+                ).rangeBetween(-period, 0)
+            )
 
             df = df.withColumn(
-                    "moving_average_" + col, func.avg(col).over(window)
-                    )
+                "moving_average_" + col,
+                func.avg(col).over(window)
+            )
 
             return df
 
         def print_moving_average(self, df=None, col="Close", nb_points=5):
-            self.moving_average(df, col, nb_points).select("Date", "moving_average_" + col).show()
+            self.moving_average(df, col, nb_points).select(
+                "Date", "moving_average_" + col
+            ).show()
 
-        def get_window_return_rate(self,start_date, period="month", nb_days=None):
+        def get_window_return_rate(
+            self, start_date, period="month", nb_days=None
+        ):
             """
             # return is in % already !!!!!! 
             """
@@ -387,26 +392,25 @@ class Stock(object):
             if not nb_days:
                 nb_days = period_days[period]
 
-            nb_days += 1 # For the exclusive end
+            nb_days += 1    # For the exclusive end
             date_from = func.to_date(lit(start_date))
             date_from = func.date_add(date_from, -1)
             date_to = func.date_add(date_from, nb_days)
-            df = df.filter(df.Date > date_from).filter(df.Date <
-                    date_to).select("Date", "Open", "Close")
+            df = df.filter(df.Date > date_from
+                          ).filter(df.Date < date_to
+                                  ).select("Date", "Open", "Close")
 
             SECS_IN_DAY = 86400 * nb_days
             period = period * SECS_IN_DAY
-            df = df.withColumn(
-                    "window_return", (df["Close"] - df["Open"])
-                    )
+            df = df.withColumn("window_return", (df["Close"] - df["Open"]))
 
             start_price = df.first()['Open']
             daily_r = df.withColumn(
-                    "eee",
-                    ((df["window_return"]) / start_price) * 100,
-                    )#.drop("Open_mean", "Close_mean", "daily_return_" + period)
+                "eee",
+                ((df["window_return"]) / start_price) * 100,
+            )    #.drop("Open_mean", "Close_mean", "daily_return_" + period)
 
-            # return is in % already !!!!!! 
+            # return is in % already !!!!!!
             return daily_r.agg(func.avg('eee').alias('avg')).first()[0]
 
         def _compute_avg(self, df, col, period):
@@ -414,36 +418,36 @@ class Stock(object):
             if period == "week":
                 # for week, we une the number of the week
                 df = (
-                        df.withColumn("Week_number", func.weekofyear(func.col("Date")))
-                        .withColumn("Date", func.date_format(func.col("Date"), "yyyy"))
-                        .groupBy("Date", "Week_number")
-                        .agg(mean(col).alias(col + "_mean"))
-                        .orderBy("Date", "Week_number")
-                        )
+                    df.withColumn(
+                        "Week_number", func.weekofyear(func.col("Date"))
+                    ).withColumn(
+                        "Date", func.date_format(func.col("Date"), "yyyy")
+                    ).groupBy("Date", "Week_number").agg(
+                        mean(col).alias(col + "_mean")
+                    ).orderBy("Date", "Week_number")
+                )
                 return df
 
             date = {"day": "yyyy-MM-dd", "month": "yyyy-MM", "year": "yyyy"}
             df = (
-                    df.withColumn("Date", func.date_format(func.col("Date"), date[period]))
-                    .groupBy("Date")
-                    .agg(mean(col).alias(col + "_mean"))
-                    .orderBy("Date")
-                    )
+                df.withColumn(
+                    "Date", func.date_format(func.col("Date"), date[period])
+                ).groupBy("Date").agg(mean(col).alias(col + "_mean")
+                                     ).orderBy("Date")
+            )
             return df
 
-
     class Insight:
-
         def __init__(self, stock):
             # save attributs
             self.stock = stock
 
-        def get_r_de_williams(self, n_days = 14, df = None):
+        def get_r_de_williams(self, n_days=14, df=None):
             if df is None:
                 df = self.stock.df
 
             SECS_IN_DAY = 86400
-            period = n_days*SECS_IN_DAY
+            period = n_days * SECS_IN_DAY
 
             df = df.withColumn("Date2", df.Date.cast("timestamp"))
 
@@ -453,16 +457,20 @@ class Stock(object):
 
             df = df.withColumn("PBn", func.min("Low").over(w))
             df = df.withColumn("PHn", func.max("High").over(w))
-            df = df.withColumn("R_de_williams", 100 - ((df["PHn"] - df["Close"]) / (df["PHn"] - df["PBn"])) * 100).drop("PHn", "PBn", "Date2")
+            df = df.withColumn(
+                "R_de_williams", 100 -
+                ((df["PHn"] - df["Close"]) / (df["PHn"] - df["PBn"])) * 100
+            ).drop("PHn", "PBn", "Date2")
 
             return df
 
-        def print_r_de_williams(self, n_days = 14):
-            self.get_r_de_williams(n_days).select("Date", "R_de_williams").show()
+        def print_r_de_williams(self, n_days=14):
+            self.get_r_de_williams(n_days).select("Date",
+                                                  "R_de_williams").show()
 
-
-        def plot_r_de_williams(self, n_days = 30):
-            df = self.get_r_de_williams(n_days).select("Date", "R_de_williams").toPandas()
+        def plot_r_de_williams(self, n_days=30):
+            df = self.get_r_de_williams(n_days).select("Date", "R_de_williams"
+                                                      ).toPandas()
             df.set_index("Date", inplace=True)
 
             fig = plt.figure(figsize=(30, 10))
@@ -472,12 +480,12 @@ class Stock(object):
             plt.axhline(80, color='r')
             plt.show()
 
-        def get_momentum_roc(self, n_days = 12, is_momentum=True, df = None):
+        def get_momentum_roc(self, n_days=12, is_momentum=True, df=None):
             if df is None:
                 df = self.stock.df
 
             SECS_IN_DAY = 86400
-            period = n_days*SECS_IN_DAY
+            period = n_days * SECS_IN_DAY
 
             df = df.withColumn("Date2", df.Date.cast("timestamp"))
 
@@ -487,43 +495,47 @@ class Stock(object):
 
             df = df.withColumn("n_close", func.first("Close").over(w))
             if is_momentum:
-                df = df.withColumn("momentum", df["Close"] - df["n_close"]).drop("n_close", "Date2")
+                df = df.withColumn("momentum", df["Close"] -
+                                   df["n_close"]).drop("n_close", "Date2")
             else:
-                df = df.withColumn("roc", df["Close"] / df["n_close"]).drop("n_close", "Date2")
+                df = df.withColumn("roc", df["Close"] /
+                                   df["n_close"]).drop("n_close", "Date2")
 
             return df
 
-        def print_momentum(self, n_days = 12):
+        def print_momentum(self, n_days=12):
             self.get_momentum_roc(n_days).select("Date", "momentum").show()
 
-
-        def plot_momentum(self, n_days = 30):
-            df = self.get_momentum_roc(n_days).select("Date", "momentum").toPandas()
+        def plot_momentum(self, n_days=30):
+            df = self.get_momentum_roc(n_days).select("Date",
+                                                      "momentum").toPandas()
             df.set_index("Date", inplace=True)
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
             plt.show()
 
+        def print_roc(self, n_days=25):
+            self.get_momentum_roc(n_days,
+                                  is_momentum=False).select("Date",
+                                                            "roc").show()
 
-        def print_roc(self, n_days = 25):
-            self.get_momentum_roc(n_days, is_momentum=False).select("Date", "roc").show()
-
-
-        def plot_roc(self, n_days = 30):
-            df = self.get_momentum_roc(n_days, is_momentum=False).select("Date", "roc").toPandas()
+        def plot_roc(self, n_days=30):
+            df = self.get_momentum_roc(n_days, is_momentum=False).select(
+                "Date", "roc"
+            ).toPandas()
             df.set_index("Date", inplace=True)
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
             plt.show()
 
-        def get_cci(self, n_days = 14, df = None):
+        def get_cci(self, n_days=14, df=None):
             if df is None:
                 df = self.stock.df
 
             SECS_IN_DAY = 86400
-            period = n_days*SECS_IN_DAY
+            period = n_days * SECS_IN_DAY
 
             df = df.withColumn("Date2", df.Date.cast("timestamp"))
 
@@ -531,21 +543,20 @@ class Stock(object):
                     .orderBy(col("Date2").cast("long"))\
                     .rangeBetween(-period, 0)
 
-            df = df.withColumn("TP", (df["High"] + df["low"] + df["Close"])/3)
+            df = df.withColumn("TP", (df["High"] + df["low"] + df["Close"]) / 3)
             df = df.withColumn("SMATP", func.avg("TP").over(w))
 
             df = df.withColumn("D", func.abs(df["TP"] - df["SMATP"]))
-            df = df.withColumn("M", func.avg("D").over(w)*0.015)
+            df = df.withColumn("M", func.avg("D").over(w) * 0.015)
 
-            df = df.withColumn("CCI", (df["TP"] - df["SMATP"])/df["M"])
+            df = df.withColumn("CCI", (df["TP"] - df["SMATP"]) / df["M"])
 
             return df
 
-        def print_cci(self, n_days = 14):
+        def print_cci(self, n_days=14):
             self.get_cci(n_days).select("Date", "CCI").show()
 
-
-        def plot_cci(self, n_days = 14):
+        def plot_cci(self, n_days=14):
             df = self.get_cci(n_days).select("Date", "CCI").toPandas()
             df.set_index("Date", inplace=True)
 
@@ -556,30 +567,38 @@ class Stock(object):
             plt.axhline(100, color='r')
             plt.show()
 
-        def get_gc(self, n_days = 14, df = None):
+        def get_gc(self, df=None, nb_days=14):
             if df is None:
                 df = self.stock.df
 
             SECS_IN_DAY = 86400
-            period = n_days*SECS_IN_DAY
+            period = nb_days * SECS_IN_DAY
 
             df = df.withColumn("Date2", df.Date.cast("timestamp"))
+            window = Window().partitionBy(lit("Date2")).orderBy(
+                col("Date2").cast("long")
+            ).rangeBetween(-period, 0)
 
-            w = Window().partitionBy(lit("Date2"))\
-                    .orderBy(col("Date2").cast("long"))\
-                    .rangeBetween(-period, 0)
+            #COG (Cours, nb_jours):
+            # A = 0
+            # B = 0
+            # for i in range(nb_days):
+            # A += (i + 1) * df[i]["Close"]
+            # B += df[i]["Close"]
+            # Return(n + 1) / 2 - A / B
 
-            df = df.withColumn("F", (func.count("Date").over(w)+ 1)/2)
+            # df = df.withColumn("A",
+
+            df = df.withColumn("F", (func.count("Date").over(w) + 1) / 2)
             df = df.withColumn("A", func.dense_rank().over(w) * df["Close"])
             df = df.withColumn("GC", df["F"] - (df["A"] / df["Close"]))
 
             return df
 
-        def print_gc(self, n_days = 14):
+        def print_gc(self, n_days=14):
             self.get_gc(n_days).select("Date", "GC").show()
 
-
-        def plot_gc(self, n_days = 14):
+        def plot_gc(self, n_days=14):
             df = self.get_gc(n_days).select("Date", "GC").toPandas()
             df.set_index("Date", inplace=True)
 
@@ -587,110 +606,96 @@ class Stock(object):
             df.plot()
             plt.show()
 
-
     class Predict:
-
         def __init__(self, stock):
             # save attributs
             self.stock = stock
-
-            self.fullDF = None
+            self.predDF = None
             self.trainDF = None
             self.testDF = None
-            self.predDF = None
 
-            self.col_to_pred = None
-
-        def add_next_day(self, col_name, df = None):
+        def add_next_day(self, col_name, df=None):
             # add the value of the next day in the column "next_" + col_name
             my_window = Window.partitionBy().orderBy("Date")
 
             if df is None:
-                df = self.fullDF
+                df = self.predDF
 
-            df = df.withColumn("next_" + col_name, lead(col_name).over(my_window))
+            df = df.withColumn(
+                "next_" + col_name,
+                lead(col_name).over(my_window)
+            )
 
             return df
 
-
-        def remove_unused_col(self, df = None):
+        def remove_unused_col(self, df=None):
             # remove useless columns
             if df is None:
-                df = self.fullDF
+                df = self.predDF
 
             df = df.drop("company_name")
 
             return df
 
+        def _create_train_test(self):
+            self.trainDF, self.testDF = self.predDF.randomSplit(
+                [0.8, 0.2], seed=42
+            )
 
-        def add_insights(self, df = None):
+        def add_insights(self, df=None):
             # add insights
             if df is None:
-                df = self.fullDF
+                df = self.predDF
 
             # add cci
-            df = self.stock.insight.get_cci(df = df).drop("Date2", "TP", "SMATP", "D", "M")
+            df = self.stock.insight.get_cci(
+                df=df
+            ).drop("Date2", "TP", "SMATP", "D", "M")
             # add roc
-            df = self.stock.insight.get_momentum_roc(is_momentum = False, df = df).drop("Date2", "n_close")
+            df = self.stock.insight.get_momentum_roc(is_momentum=False,
+                                                     df=df).drop(
+                                                         "Date2", "n_close"
+                                                     )
             # add momentum
-            df = self.stock.insight.get_momentum_roc(is_momentum = True, df = df).drop("Date2", "n_close")
+            df = self.stock.insight.get_momentum_roc(is_momentum=True,
+                                                     df=df).drop(
+                                                         "Date2", "n_close"
+                                                     )
             # add r_de_williams
-            df = self.stock.insight.get_r_de_williams(df = df).drop("Date2", "PBn", "PHn")
+            df = self.stock.insight.get_r_de_williams(
+                df=df
+            ).drop("Date2", "PBn", "PHn")
 
             return df
 
-        def add_analysis(self, df = None):
+        def add_analysis(self, df=None):
             # add analysis infos
             if df is None:
-                df = self.fullDF
+                df = self.predDF
 
             # add moving_average
-            df = self.stock.analysis.moving_average(df = df).drop("Date2")
+            df = self.stock.analysis.moving_average(df=df).drop("Date2")
 
             # add daily_return
-            daily_return = self.stock.analysis.get_daily_return().drop("Open_mean", "Close_mean").withColumnRenamed("Date", "Date2")
-            df = df.join(daily_return, df.Date == daily_return.Date2, how='inner').drop("Date2").orderBy("Date")
+            daily_return = self.stock.analysis.get_daily_return().drop(
+                "Open_mean", "Close_mean"
+            ).withColumnRenamed("Date", "Date2")
+            df = df.join(
+                daily_return, df.Date == daily_return.Date2, how='inner'
+            ).drop("Date2").orderBy("Date")
 
             return df
 
-
-        def load_insights(self, col_to_pred = "Close"):
-            self.fullDF = self.stock.df
-
-            self.col_to_pred = col_to_pred
+        def load_insights(self, col_to_pred="Close"):
+            self.predDF = self.stock.df
 
             # add infos
-            self.fullDF = self.remove_unused_col()
-            self.fullDF = self.add_next_day(col_to_pred)
-            self.fullDF = self.add_insights()
-            self.fullDF = self.add_analysis()
+            self.predDF = self.remove_unused_col()
+            self.predDF = self.add_next_day(col_to_pred)
+            self.predDF = self.add_insights()
+            self.predDF = self.add_analysis()
 
             # remove row with null
-            self.fullDF = self.fullDF.na.drop()
+            self.predDF = self.predDF.na.drop()
 
             self._create_train_test()
-
-        def _create_train_test(self):
-            self.trainDF, self.testDF = self.fullDF.randomSplit([0.8, 0.2], seed=42)
-
-        def linear_regression(self):
-            rFormula = RFormula(formula = "next_" + self.col_to_pred + " ~ . - Date", featuresCol = "features")
-
-            lr = LinearRegression(labelCol = "next_" + self.col_to_pred, predictionCol = "pred_next_" + self.col_to_pred)
-
-            pipeline = Pipeline(stages=[rFormula, lr])
-            pipelineModel = pipeline.fit(self.trainDF)
-            self.predDF = pipelineModel.transform(self.testDF)
-
-
-
-
-
-
-
-
-
-
-
-
-
