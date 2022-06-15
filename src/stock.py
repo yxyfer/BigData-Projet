@@ -388,7 +388,7 @@ class Stock(object):
             self, start_date, period="month", nb_days=None
         ):
             """
-            # return is in % already !!!!!! 
+            # return is in % already !!!!!!
             """
             df = self.stock.df
             period_days = {"month": 30, "year": 365}
@@ -639,6 +639,40 @@ class Stock(object):
             plt.show()
 
 
+        def get_dpo(self, n_days = 20, df = None):
+            if df is None:
+                df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+                    .orderBy(col("Date2").cast("long"))\
+                    .rangeBetween(-period, 0)
+
+            w2 = Window().partitionBy(lit("Date2"))\
+                    .orderBy(col("Date2").cast("long"))\
+                    .rangeBetween(int(-period/2 - SECS_IN_DAY), 0)
+
+            df = df.withColumn("DPO_MM", func.avg("Close").over(w))
+            df = df.withColumn("DPO_Close", func.first("Close").over(w2))
+            df = df.withColumn("DPO", df["DPO_Close"] - df["DPO_MM"])
+
+            return df
+
+        def print_dpo(self, n_days = 20):
+            self.get_dpo(n_days).select("Date", "Close", "DPO").show()
+
+
+        def plot_dpo(self, n_days = 20):
+            df = self.get_dpo(n_days).select("Date", "Close", "DPO").toPandas()
+            df.set_index("Date", inplace=True)
+
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
     class Predict:
         def __init__(self, stock):
             # save attributs
