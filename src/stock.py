@@ -570,7 +570,7 @@ class Stock(object):
                     .rangeBetween(-period, 0)
 
             df = df.withColumn("F", (func.count("Date").over(w)+ 1)/2)
-            df = df.withColumn("A", func.dense_rank().over(w) * df["Close"])
+            df = df.withColumn("A", func.row_number().over(w) * df["Close"])
             df = df.withColumn("GC", df["F"] - (df["A"] / df["Close"]))
 
             return df
@@ -581,6 +581,74 @@ class Stock(object):
 
         def plot_gc(self, n_days = 14):
             df = self.get_gc(n_days).select("Date", "GC").toPandas()
+            df.set_index("Date", inplace=True)
+
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
+
+        def get_bb(self, n_days = 20, df = None):
+            if df is None:
+                df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+                    .orderBy(col("Date2").cast("long"))\
+                    .rangeBetween(-period, 0)
+
+            df = df.withColumn("BB_MM", func.avg("Close").over(w))
+            df = df.withColumn("BB_std", func.stddev("Close").over(w))
+            df = df.withColumn("BB_UB", df["BB_MM"] + 2 * df["BB_std"])
+            df = df.withColumn("BB_LB", df["BB_MM"] - 2 * df["BB_std"])
+
+            return df
+
+        def print_bb(self, n_days = 20):
+            self.get_bb(n_days).select("Date", "Close", "BB_MM", "BB_UB", "BB_LB").show()
+
+
+        def plot_bb(self, n_days = 20):
+            df = self.get_bb(n_days).select("Date", "Close", "BB_MM", "BB_UB", "BB_LB").toPandas()
+            df.set_index("Date", inplace=True)
+
+            fig = plt.figure(figsize=(30, 10))
+            df.plot()
+            plt.show()
+
+        def get_kb(self, n_days = 20, df = None):
+            if df is None:
+                df = self.stock.df
+
+            SECS_IN_DAY = 86400
+            period = n_days*SECS_IN_DAY
+
+            df = df.withColumn("Date2", df.Date.cast("timestamp"))
+
+            w = Window().partitionBy(lit("Date2"))\
+                    .orderBy(col("Date2").cast("long"))\
+                    .rangeBetween(-period, 0)
+
+            my_window = Window.partitionBy().orderBy("Date")
+
+            df = df.withColumn("KB_MM", func.avg("Close").over(w))
+            df = df.withColumn("KB_LC", lag("Close").over(my_window))
+            df = df.withColumn("KB_TR", max(abs(DF["High"] - DF["Low"]), abs(DF["High"] - DF["KB_LC"]), abs(DF["Low"] - DF["KB_LC"])))
+            df = df.withColumn("KB_ATR", func.avg("KB_TR").over(w))
+            df = df.withColumn("KB_UB", df["KB_MM"] + 2 * df["KB_ATR"])
+            df = df.withColumn("KB_LB", df["KB_MM"] - 2 * df["KB_ATR"])
+
+            return df
+
+        def print_kb(self, n_days = 20):
+            self.get_bb(n_days).select("Date", "Close", "KB_MM", "KB_UB", "KB_LB").show()
+
+
+        def plot_kb(self, n_days = 20):
+            df = self.get_bb(n_days).select("Date", "Close", "KB_MM", "KB_UB", "KB_LB").toPandas()
             df.set_index("Date", inplace=True)
 
             fig = plt.figure(figsize=(30, 10))
