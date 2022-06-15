@@ -37,6 +37,10 @@ from pyspark.sql.window import Window
 import pandas as pd
 import numpy as np
 
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import RFormula
+from pyspark.ml.regression import LinearRegression
+
 spark_application_name = "WannaFlop_Project"
 spark = SparkSession.builder.appName(spark_application_name).getOrCreate()
 
@@ -589,16 +593,20 @@ class Stock(object):
         def __init__(self, stock):
             # save attributs
             self.stock = stock
-            self.predDF = None
+
+            self.fullDF = None
             self.trainDF = None
             self.testDF = None
+            self.predDF = None
+
+            self.col_to_pred = None
 
         def add_next_day(self, col_name, df = None):
             # add the value of the next day in the column "next_" + col_name
             my_window = Window.partitionBy().orderBy("Date")
 
             if df is None:
-                df = self.predDF
+                df = self.fullDF
 
             df = df.withColumn("next_" + col_name, lead(col_name).over(my_window))
 
@@ -608,20 +616,17 @@ class Stock(object):
         def remove_unused_col(self, df = None):
             # remove useless columns
             if df is None:
-                df = self.predDF
+                df = self.fullDF
 
             df = df.drop("company_name")
 
             return df
 
 
-        def _create_train_test(self):
-            self.trainDF, self.testDF = self.predDF.randomSplit([0.8, 0.2], seed=42)
-
         def add_insights(self, df = None):
             # add insights
             if df is None:
-                df = self.predDF
+                df = self.fullDF
 
             # add cci
             df = self.stock.insight.get_cci(df = df).drop("Date2", "TP", "SMATP", "D", "M")
@@ -637,7 +642,7 @@ class Stock(object):
         def add_analysis(self, df = None):
             # add analysis infos
             if df is None:
-                df = self.predDF
+                df = self.fullDF
 
             # add moving_average
             df = self.stock.analysis.moving_average(df = df).drop("Date2")
@@ -650,15 +655,42 @@ class Stock(object):
 
 
         def load_insights(self, col_to_pred = "Close"):
-            self.predDF = self.stock.df
+            self.fullDF = self.stock.df
+
+            self.col_to_pred = col_to_pred
 
             # add infos
-            self.predDF = self.remove_unused_col()
-            self.predDF = self.add_next_day(col_to_pred)
-            self.predDF = self.add_insights()
-            self.predDF = self.add_analysis()
+            self.fullDF = self.remove_unused_col()
+            self.fullDF = self.add_next_day(col_to_pred)
+            self.fullDF = self.add_insights()
+            self.fullDF = self.add_analysis()
 
             # remove row with null
-            self.predDF = self.predDF.na.drop()
+            self.fullDF = self.fullDF.na.drop()
 
             self._create_train_test()
+
+        def _create_train_test(self):
+            self.trainDF, self.testDF = self.fullDF.randomSplit([0.8, 0.2], seed=42)
+
+        def linear_regression(self):
+            rFormula = RFormula(formula = "next_" + self.col_to_pred + " ~ . - Date", featuresCol = "features")
+
+            lr = LinearRegression(labelCol = "next_" + self.col_to_pred, predictionCol = "pred_next_" + self.col_to_pred)
+
+            pipeline = Pipeline(stages=[rFormula, lr])
+            pipelineModel = pipeline.fit(self.trainDF)
+            self.predDF = pipelineModel.transform(self.testDF)
+
+
+
+
+
+
+
+
+
+
+
+
+
