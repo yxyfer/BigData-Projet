@@ -1,4 +1,5 @@
 from src.stock import Stock
+from src.stock_prediction import StockPrediction
 import pyspark.sql.functions as func
 from pyspark.sql.functions import col
 
@@ -10,10 +11,17 @@ import numpy as np
 
 
 class Stocks(object):
-    def __init__(self, files=None, header=False, delimiter=";", schema=None):
+    def __init__(self, files=None, header=False, delimiter=";", schema=None, col_to_pred="Close"):
 
         # load and save stocks
         self.stocks = self._load_stocks(files, header, delimiter, schema)
+
+        # load and save prediction objects
+        self.preds = self._load_preds()
+
+        # load insights for prediction
+        for stock in self.stocks:
+            stock.predict.load_insights(col_to_pred)
 
     def _load_stocks(self, files, header, delimiter, schema):
         # load stocks contained in files
@@ -27,6 +35,16 @@ class Stocks(object):
             # call the Stock class to load each stock/file
             dfs.append(
                 Stock(file, header=header, delimiter=delimiter, schema=schema)
+            )
+
+        return dfs
+
+    def _load_preds(self):
+        dfs = []
+        for stock in self.stocks:
+            # call the StockPrediction class to load each prediction of each stock
+            dfs.append(
+                StockPrediction(stock)
             )
 
         return dfs
@@ -140,8 +158,15 @@ class Stocks(object):
             func()
 
     def call_insight_function(self, function_name):
-        # call a specific function to each analysis object of each stock
+        # call a specific function to each insight object of each stock
         for stock in self.stocks:
             stock.print_name()
             func = getattr(stock.insight, function_name)
+            func()
+
+    def call_prediction_function(self, function_name):
+        # call a specific function to each prediction object of each stock
+        for pred in self.preds:
+            pred.stock.print_name()
+            func = getattr(pred, function_name)
             func()

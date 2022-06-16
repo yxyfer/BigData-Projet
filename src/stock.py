@@ -714,9 +714,6 @@ class Stock(object):
             self.stock = stock
 
             self.fullDF = None
-            self.trainDF = None
-            self.testDF = None
-            self.predDF = None
 
             self.col_to_pred = None
 
@@ -810,7 +807,7 @@ class Stock(object):
         def load_insights(self, col_to_pred="Close"):
             self.fullDF = self.stock.df
 
-            # self.col_to_pred = col_to_pred
+            self.col_to_pred = col_to_pred
 
             # add infos
             self.fullDF = self.remove_unused_col()
