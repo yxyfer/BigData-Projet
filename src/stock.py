@@ -187,8 +187,7 @@ class Stock(object):
 
         def period(self):
             # get the period between data points : "day", "week", "month", "year"
-            df["r"] = "r"
-            my_window = Window.partitionBy("r").orderBy("Date")
+            my_window = Window.partitionBy().orderBy("Date")
             # add infos
 
             df = self.stock.df
