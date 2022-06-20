@@ -43,6 +43,8 @@ from pyspark.ml.regression import LinearRegression
 spark_application_name = "WannaFlop_Project"
 spark = SparkSession.builder.appName(spark_application_name).getOrCreate()
 
+spark.sparkContext.setLogLevel("ERROR")
+
 
 class Stock(object):
     def __init__(self, file_path, header=False, delimiter=";", schema=None):
@@ -185,7 +187,8 @@ class Stock(object):
 
         def period(self):
             # get the period between data points : "day", "week", "month", "year"
-            my_window = Window.partitionBy("Date").orderBy("Date")
+            df["r"] = "r"
+            my_window = Window.partitionBy("r").orderBy("Date")
             # add infos
 
             df = self.stock.df
@@ -618,7 +621,7 @@ class Stock(object):
                 col("Date2").cast("long")
             ).rangeBetween(-period, 0)
 
-            my_window = Window.partitionBy("Date").orderBy("Date")
+            my_window = Window.partitionBy().orderBy("Date")
 
             df = df.withColumn("KB_MM", func.avg("Close").over(w))
             df = df.withColumn("KB_LC", lag("Close").over(my_window))
