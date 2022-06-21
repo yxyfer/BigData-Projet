@@ -480,6 +480,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("William's R%")
             plt.axhline(20, color='r')
             plt.axhline(50, color='g')
             plt.axhline(80, color='r')
@@ -518,6 +519,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("Momentum")
             plt.show()
 
         def print_roc(self, n_days=25):
@@ -533,6 +535,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("ROC")
             plt.show()
 
         def get_cci(self, n_days=14, df=None):
@@ -570,6 +573,7 @@ class Stock(object):
             plt.axhline(-100, color='r')
             plt.axhline(0, color='g')
             plt.axhline(100, color='r')
+            plt.title("Commodity Chanel Index")
             plt.show()
 
         def get_bb(self, n_days=20, df=None):
@@ -605,6 +609,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("Bollinger bands")
             plt.show()
 
         def get_kb(self, n_days=20, df=None):
@@ -651,6 +656,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("Keltner bands")
             plt.show()
 
         def get_dpo(self, n_days=20, df=None):
@@ -685,6 +691,7 @@ class Stock(object):
 
             fig = plt.figure(figsize=(30, 10))
             df.plot()
+            plt.title("Detrend Price Oscillator")
             plt.show()
 
         def get_bof(self, n_days=14, df=None):
@@ -721,6 +728,7 @@ class Stock(object):
             fig = plt.figure(figsize=(30, 10))
             df1.plot()
             df2.plot()
+            plt.title("Balance of Power")
             plt.show()
 
     class Predict:
