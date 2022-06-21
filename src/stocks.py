@@ -11,7 +11,14 @@ import numpy as np
 
 
 class Stocks(object):
-    def __init__(self, files=None, header=False, delimiter=";", schema=None, col_to_pred="Close"):
+    def __init__(
+        self,
+        files=None,
+        header=False,
+        delimiter=";",
+        schema=None,
+        col_to_pred="Close"
+    ):
 
         # load and save stocks
         self.stocks = self._load_stocks(files, header, delimiter, schema)
@@ -43,9 +50,7 @@ class Stocks(object):
         dfs = []
         for stock in self.stocks:
             # call the StockPrediction class to load each prediction of each stock
-            dfs.append(
-                StockPrediction(stock)
-            )
+            dfs.append(StockPrediction(stock))
 
         return dfs
 
